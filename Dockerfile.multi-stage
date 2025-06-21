@@ -1,0 +1,35 @@
+
+# Stage 1: Base image with dependencies
+FROM python:3.13-slim-bookworm AS base
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Install uv from external image (fast Python package manager)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Set working directory
+WORKDIR /app
+
+# Copy project files
+COPY . /app
+
+# Install Python dependencies
+RUN uv sync --frozen --no-cache
+
+# Stage 2: Final image
+FROM python:3.13-slim-bookworm AS final
+
+# Copy uv from previous stage
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Copy app and dependencies from base stage
+WORKDIR /app
+COPY --from=base /app /app
+
+# Expose the application port
+EXPOSE 8000
+
+# Start the FastAPI app using uvicorn
+CMD ["uv", "run", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
